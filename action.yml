@@ -9,6 +9,10 @@ inputs:
     description: "Config file name"
     required: true
     default: ""
+  base-config-object:
+    description: "Base object (as json string) to merge the yaml file with"
+    required: false
+    default: ""
   key-path:
     description: "Key path to filter out in the yaml file"
     required: false
@@ -17,6 +21,9 @@ inputs:
     description: "Prefix that will be added as the prefix to the environment variables output"
     required: false
     default: ""
+  merge:
+    description: "Works in conjuection with the key-path input, if true, the key-path will be merged with the root of the yaml file"
+    required: false
 runs:
   using: "node20"
   main: "action_read_yaml/index.js"

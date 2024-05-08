@@ -54,13 +54,28 @@ const replaceVariables = (value, resolved) => {
   }
 };
 
+const resolveFields = (obj, prefix = "") => {
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === "object" && value !== null) {
+      if(Array.isArray(value)) {
+        core.setOutput(prefix+key+".array", value);
+      }
+      resolveFields(value, prefix + key + ".");
+    } else {
+      resolved[prefix + key] = replaceVariables(value, resolved);
+    }
+  }
+};
+
 /**
  * Main function to execute the action
  */
 async function main() {
   try {
     const configData = core.getInput("config");
+    const baseConfigObj = core.getInput("base-config-object");
     const keyPathPattern = core.getInput("key-path-pattern");
+    const merge = core.getInput("merge") || false;
     const envVarPrefix = core.getInput("env-var-prefix");
 
     fs.readFile(configData, "utf8", (err, data) => {
@@ -80,54 +95,42 @@ async function main() {
 
       const SCHEMA = yaml.FAILSAFE_SCHEMA;
       const configYaml = yaml.load(data, { schema: SCHEMA });
-      const resolved = {};
-
-      const resolveFields = (obj, prefix = "") => {
-        for (const [key, value] of Object.entries(obj)) {
-          if (typeof value === "object" && value !== null) {
-            if(Array.isArray(value)) {
-              core.setOutput(prefix+key+".array", value);
-            }
-            resolveFields(value, prefix + key + ".");
-          } else {
-            resolved[prefix + key] = replaceVariables(value, resolved);
-          }
-        }
-      };
+      const resolved = baseConfigObj ? JSON.parse(baseConfigObj) : {};
 
       resolveFields(configYaml);
 
       const reKPP = RegExp(keyPathPattern,"g");
       const reEnvVarPattern = RegExp('[\.|\-]',"g");
 
+      const setOutput = (key, value) => {
+        core.info(`${key} : ${value}`);
+        core.setOutput(key,value);
+        if ( envVarPrefix )
+        {
+            key=key.replace(reEnvVarPattern,"_");
+            core.info(`${envVarPrefix}_${key}=${value}`);
+            core.exportVariable(`${envVarPrefix}_${key}`,value);
+        }
+      };
+
       Object.entries(resolved).map((val) => {
         const key = val[0];
         const value = val[1];
         if ( keyPathPattern )
         {
-            if(key.match(reKPP))
+            if( key.match(reKPP) )
             {
                 var k=key.replace(reKPP,'');
-                core.info(`${k} : ${value}`);
-                core.setOutput(k,value);
-                if ( envVarPrefix )
-                {
-                    k=k.replace(reEnvVarPattern,"_");
-                    core.info(`${envVarPrefix}_${k}=${value}`);
-                    core.exportVariable(`${envVarPrefix}_${k}`,value);
-                }
+                setOutput(k,value);
             }
-        }
+            else if ( merge ) 
+            {
+              setOutput(key,value);
+            }
+        }        
         else
         {
-            core.info(`${key} : ${value}`);
-            core.setOutput(key,value);
-            if ( envVarPrefix )
-            {
-                k=key.replace(reEnvVarPattern,"_");
-                core.info(`${envVarPrefix}_${k}=${value}`);
-                core.exportVariable(`${envVarPrefix}_${k}`,value);
-            }
+          setOutput(key,value);
         }
       });
     });
