@@ -13,8 +13,8 @@ inputs:
     description: "Base object (as json string) to merge the yaml file with"
     required: false
     default: ""
-  key-path:
-    description: "Key path to filter out in the yaml file"
+  key-path-pattern:
+    description: "Key path pattern to filter out in the yaml file (or to merge with the base-config-object if merge is true)"
     required: false
     default: ""
   env-var-prefix:
