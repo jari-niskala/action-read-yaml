@@ -54,19 +54,6 @@ const replaceVariables = (value, resolved) => {
   }
 };
 
-const resolveFields = (obj, prefix = "") => {
-  for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === "object" && value !== null) {
-      if(Array.isArray(value)) {
-        core.setOutput(prefix+key+".array", value);
-      }
-      resolveFields(value, prefix + key + ".");
-    } else {
-      resolved[prefix + key] = replaceVariables(value, resolved);
-    }
-  }
-};
-
 /**
  * Main function to execute the action
  */
@@ -96,6 +83,19 @@ async function main() {
       const SCHEMA = yaml.FAILSAFE_SCHEMA;
       const configYaml = yaml.load(data, { schema: SCHEMA });
       const resolved = baseConfigObj ? JSON.parse(baseConfigObj) : {};
+
+      const resolveFields = (obj, prefix = "") => {
+        for (const [key, value] of Object.entries(obj)) {
+          if (typeof value === "object" && value !== null) {
+            if(Array.isArray(value)) {
+              core.setOutput(prefix+key+".array", value);
+            }
+            resolveFields(value, prefix + key + ".");
+          } else {
+            resolved[prefix + key] = replaceVariables(value, resolved);
+          }
+        }
+      };      
 
       resolveFields(configYaml);
 
